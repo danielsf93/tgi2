@@ -1,0 +1,71 @@
+Obtenção de dados para os mapas
+
+1) Salvar as páginas de informações de transmissões de qualquer estação de idioma a idioma.
+
+2)copiar os dados de cada arquivo, formando a tabela swi com dados brutos. Cada dado deve ficar na coluna respectiva:
+'freq', 'station', 'start', 'end', 'days', 'language', 'pwr', 'az' e 'transmitter_site'.
+
+3) Mover o arquivo swi.csv para a pasta apropriada
+ /var/lib/mysql/
+
+4) Mudar a permissão do arquivo
+# chmod +r /var/lib/mysql/swi.csv
+
+5) abrir mariadb
+# mariadb -uadmin -padmin
+
+6)Criar o banco de dados 'shortwaveinfo'
+# create database shortwaveinfo;
+
+7) Criar tabela swi no banco de dados shortwaveinfo respeitando 'freq', 'station', 'start', 'end', 'days', 'language', 'pwr', 'az' e 'transmitter_site'.:
+# USE shortwaveinfo;
+
+#CREATE TABLE swi (
+    ->     freq VARCHAR(10),
+    ->     station VARCHAR(255),
+    ->     start TIME,
+    ->     end TIME,
+    ->     days VARCHAR(10),
+    ->     language VARCHAR(255),
+    ->     pwr INT NULL, -- Permitindo valores nulos
+    ->     az VARCHAR(5),
+    ->     transmitter_site TEXT
+    -> );
+
+8) Importar os dados da tabela csv para a tabela 'swi' do banco de dados 'shortwaveinfo':
+#LOAD DATA INFILE '/var/lib/mysql/swi.csv' 
+    -> INTO TABLE swi
+    -> FIELDS TERMINATED BY ',' 
+    -> ENCLOSED BY '"'
+    -> LINES TERMINATED BY '\n'
+    -> IGNORE 1 ROWS
+    -> (freq, station, start, end, days, language, @pwr, az, transmitter_site)
+    -> SET pwr = NULLIF(@pwr, '');
+
+9) criar colunas 'latitude' e 'longitude':
+#
+
+10) obter os dados de 'latitude' através da coluna 'transmitter_site':
+#UPDATE swi
+    -> SET latitude = 
+    ->   CASE
+    ->     WHEN transmitter_site LIKE '%Latitude:%' THEN
+    ->       SUBSTRING_INDEX(SUBSTRING_INDEX(transmitter_site, 'Latitude:', -1), '\n', 1)
+    ->     ELSE NULL
+    ->   END;
+
+11) Obter os dados de 'longitude' através da coluna 'transmitter_site':
+#UPDATE swi
+SET longitude = 
+  CASE
+    WHEN transmitter_site LIKE '%Longitude:%' THEN
+      SUBSTRING_INDEX(SUBSTRING_INDEX(transmitter_site, 'Longitude:', -1), '\n', 1)
+    ELSE NULL
+  END;
+
+12) Exportar dados para formato csv para poder serem utilizados no Qgis:
+# SELECT * INTO OUTFILE '/var/lib/mysql/swixy.csv'
+FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+FROM swi;
+
